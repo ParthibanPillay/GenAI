@@ -3,9 +3,9 @@
 import axios from "axios";
 import * as z from "zod";
 import Heading from "@/components/heading";
-import { ImageIcon, MessageSquareIcon } from "lucide-react";
+import { Download, ImageIcon, MessageSquareIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { amountOptions, formSchema } from "./constants";
+import { amountOptions, resolutionOptions, formSchema } from "./constants";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ import { Empty } from "@/components/Empty";
 import Loader from "@/components/Loader";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardFooter } from "@/components/ui/card";
+import Image from "next/image";
 
 const ImagePage = () => {
 
@@ -82,7 +84,7 @@ const ImagePage = () => {
                             <FormField
                                 name="prompt"
                                 render={({ field }) => (
-                                    <FormItem className="col-span-12 lg:col-span-10">
+                                    <FormItem className="col-span-12 lg:col-span-6">
                                         <FormControl className="m-0 p-0">
                                             <Input className="border-0 outline-none focus-visible:ring-0 focus-visible:ring-transparent"
                                                 disabled={isLoading}
@@ -122,6 +124,36 @@ const ImagePage = () => {
                                     </FormItem>
                                 )}
                             />
+                            <FormField
+                                control={form.control}
+                                name="resolution"
+                                render={({ field }) => (
+                                    <FormItem className="col-span-12 lg:col-span-2">
+                                        <Select
+                                            disabled={isLoading}
+                                            onValueChange={field.onChange}
+                                            value={field.value}
+                                            defaultValue={field.value}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue defaultValue={field.value} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {resolutionOptions.map((option) => (
+                                                    <SelectItem
+                                                        key={option.value}
+                                                        value={option.value}
+                                                    >
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )}
+                            />
                             <Button className="col-span-12 lg:col-span-2 w-full" disabled={isLoading}>
                                 Generate
                             </Button>
@@ -139,8 +171,27 @@ const ImagePage = () => {
                     {images.length === 0 && !isLoading && (
                         <Empty label="no images generated..." />
                     )}
-                    <div>
-                        images will be rendered here
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-col-3 xl:grid-col-4 gap-4 mt-8">
+                        {images.map((src) =>(
+                            <Card
+                            key={src}
+                            className="rounded-lg overflow-hidden"
+                            >
+                                <div className="relative aspect-square">
+                                    <Image
+                                    alt="image"
+                                    fill
+                                    src={src}
+                                    />
+                                </div>
+                                <CardFooter className="p-2">
+                                    <Button  onClick={() => window.open(src)} variant="secondary" className="w-full">
+                                        <Download className="h-4 w-4 mr-2"/>
+                                        Donwload
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
                 </div>
             </div>
