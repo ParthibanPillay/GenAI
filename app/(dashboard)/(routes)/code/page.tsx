@@ -3,7 +3,7 @@
 import axios from "axios";
 import * as z from "zod";
 import Heading from "@/components/heading";
-import { MessageSquareIcon, MusicIcon } from "lucide-react";
+import { CodeIcon, MessageSquareIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { formSchema } from "./constants";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,20 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {ChatCompletionMessageParam} from "openai/resources/chat/completions";
+import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import OpenAI from "openai";
 import { Empty } from "@/components/Empty";
 import Loader from "@/components/Loader";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/user-avatar";
+import { BotAvatar } from "@/components/bot-avatar";
 import { useProModal } from "@/hooks/use-pro-modal";
 import toast from "react-hot-toast";
 
-const MusicPage = () => {
+const ConversationPage = () => {
 
     const proModal = useProModal();
     const router = useRouter();
 
-    const [music,setMusic] = useState<string>();
+    const [messages, setMessages] = useState<ChatCompletionMessageParam[]>([]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -37,22 +39,28 @@ const MusicPage = () => {
     const isLoading = form.formState.isSubmitting;
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
-        try{
+        try {
 
-            setMusic(undefined);
+            const ChatCompletionMessageParam = {
+                role: "user",
+                content: values.prompt,
+            };
 
-            const response = await axios.post("/api/music",values);
+            const newMessages = [...messages, ChatCompletionMessageParam];
 
-            setMusic(response.data.audio);
-            form.reset();
+            const response = await axios.post("/api/code", {
+                messages: newMessages,
+            });
 
-        } catch(error:any){
-            if(error?.response?.status === 403){
+            setMessages((current) => [...current, ChatCompletionMessageParam, response.data]);
+
+        } catch (error: any) {
+            if (error?.response?.status === 403) {
                 proModal.onOpen();
             } else {
                 toast.error("something went wrong");
             }
-        } finally{
+        } finally {
             router.refresh();
         }
     }
@@ -60,11 +68,11 @@ const MusicPage = () => {
     return (
         <div>
             <Heading
-                title="Music Generation"
-                description="Create beautiful music with our latest AI model"
-                icon={MusicIcon}
-                iconColor="text-green-500"
-                bgColor="bg-green-500/10"
+                title="code pilot"
+                description="chat with codepilot AI"
+                icon={CodeIcon}
+                iconColor="text-blue-500"
+                bgColor="bg-blue-500/10"
             />
 
             <div className="px-4 lg:px-8">
@@ -88,14 +96,14 @@ const MusicPage = () => {
                                         <FormControl className="m-0 p-0">
                                             <Input className="border-0 outline-none focus-visible:ring-0 focus-visible:ring-transparent"
                                                 disabled={isLoading}
-                                                placeholder="Message Music AI" 
-                                                {...field}/>
+                                                placeholder="e.x. what is javascript ?"
+                                                {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )} />
-                                <Button className="col-span-12 lg:col-span-2 w-full" disabled={isLoading}>
-                                    Generate 
-                                </Button>
+                            <Button className="col-span-12 lg:col-span-2 w-full" disabled={isLoading}>
+                                Generate
+                            </Button>
                         </form>
                     </Form>
                 </div>
@@ -103,22 +111,28 @@ const MusicPage = () => {
                 <div className="space-y-4 mt-4">
                     {isLoading && (
                         <div className="p-8 rounded-lg w-full flex items-center justify-center bg-muted">
-                            <Loader/>
+                            <Loader />
                         </div>
                     )}
 
-                    {!music && !isLoading && (
-                        <Empty label="no music generated"/>
+                    {messages.length === 0 && !isLoading && (
+                        <Empty label="no conversation started" />
                     )}
-                    {music && (
-                        <audio controls className="w-full mt-8">
-                            <source src={music}/>
-                        </audio>
-                    )}
+                    <div className="flex flex-col-reverse gap-y-4">
+                        {messages.map((message) => (
+                            <div key={String(message.content)}
+                                className={cn("p-8 w-full flex items-start gap-x-8 rounded-lg", message.role === "user" ? "bg-white border border-black/10" : "bg-muted")}>
+
+                                {message.role === "user" ? <UserAvatar /> : <BotAvatar />}
+                                <p className="text-sm">{String(message.content)}</p>
+                            </div>
+                        ))}
+
+                    </div>
                 </div>
             </div>
         </div>
     );
 }
 
-export default MusicPage;
+export default ConversationPage;

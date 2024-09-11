@@ -3,7 +3,7 @@
 import axios from "axios";
 import * as z from "zod";
 import Heading from "@/components/heading";
-import { MessageSquareIcon, MusicIcon } from "lucide-react";
+import { VideoIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { formSchema } from "./constants";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {ChatCompletionMessageParam} from "openai/resources/chat/completions";
 import OpenAI from "openai";
 import { Empty } from "@/components/Empty";
 import Loader from "@/components/Loader";
@@ -20,12 +19,12 @@ import { cn } from "@/lib/utils";
 import { useProModal } from "@/hooks/use-pro-modal";
 import toast from "react-hot-toast";
 
-const MusicPage = () => {
+const VideoPage = () => {
 
     const proModal = useProModal();
     const router = useRouter();
 
-    const [music,setMusic] = useState<string>();
+    const [video,setVideo] = useState<string>();
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -39,11 +38,11 @@ const MusicPage = () => {
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         try{
 
-            setMusic(undefined);
+            setVideo(undefined);
 
-            const response = await axios.post("/api/music",values);
+            const response = await axios.post("/api/video",values);
 
-            setMusic(response.data.audio);
+            setVideo(response.data[0]);
             form.reset();
 
         } catch(error:any){
@@ -60,11 +59,11 @@ const MusicPage = () => {
     return (
         <div>
             <Heading
-                title="Music Generation"
-                description="Create beautiful music with our latest AI model"
-                icon={MusicIcon}
-                iconColor="text-green-500"
-                bgColor="bg-green-500/10"
+                title="Video Generation"
+                description="Create awesome video with our latest AI model"
+                icon={VideoIcon}
+                iconColor="text-orange-500"
+                bgColor="bg-orange-500/10"
             />
 
             <div className="px-4 lg:px-8">
@@ -88,7 +87,7 @@ const MusicPage = () => {
                                         <FormControl className="m-0 p-0">
                                             <Input className="border-0 outline-none focus-visible:ring-0 focus-visible:ring-transparent"
                                                 disabled={isLoading}
-                                                placeholder="Message Music AI" 
+                                                placeholder="clown fish swimming around a coral reef" 
                                                 {...field}/>
                                         </FormControl>
                                     </FormItem>
@@ -107,13 +106,13 @@ const MusicPage = () => {
                         </div>
                     )}
 
-                    {!music && !isLoading && (
-                        <Empty label="no music generated"/>
+                    {!video && !isLoading && (
+                        <Empty label="No Video Generated"/>
                     )}
-                    {music && (
-                        <audio controls className="w-full mt-8">
-                            <source src={music}/>
-                        </audio>
+                    {video && (
+                        <video className="w-full aspect-video mt-8 rounded-lg border bg-black" controls>
+                            <source src={video}/>
+                        </video>
                     )}
                 </div>
             </div>
@@ -121,4 +120,4 @@ const MusicPage = () => {
     );
 }
 
-export default MusicPage;
+export default VideoPage;

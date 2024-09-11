@@ -1,11 +1,12 @@
 import { auth } from '@clerk/nextjs/server';
 import { stat } from 'fs';
 import { NextResponse } from 'next/server';
-import { OpenAI } from 'openai';
+import Replicate from 'replicate';
+import { scheduler } from 'timers/promises';
+import { increaseApiLimit, checkApiLimit } from '@/lib/api-limit';
+import { checkSubscription } from '@/lib/subscription';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+const replicate = new Replicate();
 
 export async function POST(req:Request){
     try{
@@ -15,10 +16,6 @@ export async function POST(req:Request){
 
         if (!userId) {
             return new NextResponse("unauthorized",{status:401});
-        }
-
-        if(!openai.apiKey) {
-            return new NextResponse("OpenAI API ket not configured",{status:500});
         }
 
         if(!prompt) {
@@ -33,14 +30,25 @@ export async function POST(req:Request){
             return new NextResponse("resolution is required",{status:400})
         }
 
-        const response = await openai.images.generate({
-            model:"dall-e-3",
-            prompt,
-            n: parseInt(amount,10),
-            size:resolution,
-        })
+        const freeTrial = await checkApiLimit();
+        const isPro = await checkSubscription();
 
-        return NextResponse.json(response.data);
+        if(!freeTrial && !isPro){
+            return new NextResponse("free trial has expired.", {status:403})
+        }
+
+
+        const response = await replicate.run("stability-ai/stable-diffusion:ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4", { 
+            input : {
+                prompt
+            }
+         });
+
+         if(!isPro) {
+            await increaseApiLimit();
+        }
+
+        return NextResponse.json(response);
 
     } catch(error){
         console.log("[IMAGE_ERROR]",error);

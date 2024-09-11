@@ -10,6 +10,8 @@ import {
   
   export default clerkMiddleware((auth, req) => {
     if (isProtectedRoute(req)) auth().protect();
+
+    publicRoutes : ["/","/api/webhook"];
   });
   
   export const config = {

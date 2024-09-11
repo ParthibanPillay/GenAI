@@ -19,9 +19,12 @@ import Loader from "@/components/Loader";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
 import { BotAvatar } from "@/components/bot-avatar";
+import { useProModal } from "@/hooks/use-pro-modal";
+import toast from "react-hot-toast";
 
 const ConversationPage = () => {
 
+    const proModal = useProModal();
     const router = useRouter();
 
     const [messages,setMessages] = useState<ChatCompletionMessageParam[]>([]);
@@ -37,7 +40,6 @@ const ConversationPage = () => {
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         try{
-
             const ChatCompletionMessageParam = {
                 role : "user",
                 content : values.prompt,
@@ -52,8 +54,11 @@ const ConversationPage = () => {
             setMessages((current) => [...current,ChatCompletionMessageParam,response.data]);
 
         } catch(error:any){
-            //todo open pro modal
-            console.log(error);
+        if(error?.response?.status === 403){
+            proModal.onOpen();
+        } else {
+            toast.error("something went wrong")
+        }
         } finally{
             router.refresh();
         }
@@ -114,11 +119,11 @@ const ConversationPage = () => {
                     )}
                     <div className="flex flex-col-reverse gap-y-4">
                         {messages.map((message) => (
-                            <div key={message.content}
+                            <div key={String(message.content)}
                             className={cn("p-8 w-full flex items-start gap-x-8 rounded-lg",message.role === "user"?"bg-white border border-black/10" : "bg-muted")}>
 
                                 {message.role === "user"?<UserAvatar />:<BotAvatar/>}
-                                <p className="text-sm">{message.content}</p>
+                                <p className="text-sm">{String(message.content)}</p>
                             </div>
                         ))}
 
