@@ -12,8 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import OpenAI from "openai";
 import { Empty } from "@/components/Empty";
 import Loader from "@/components/Loader";
 import { cn } from "@/lib/utils";
@@ -21,13 +19,27 @@ import { UserAvatar } from "@/components/user-avatar";
 import { BotAvatar } from "@/components/bot-avatar";
 import { useProModal } from "@/hooks/use-pro-modal";
 import toast from "react-hot-toast";
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { connect } from "http2";
+import ReactMarkdown from 'react-markdown';
 
-const ConversationPage = () => {
+const genAI = new GoogleGenerativeAI(process.env.API_KEY||"");
+const model = genAI.getGenerativeModel({
+  model: 'gemini-1.5-pro',
+});
+
+interface Message {
+    role: "user" | "bot";  // Specify the roles
+    content: string; //content of the message
+}
+
+const CodePage = () => {
 
     const proModal = useProModal();
     const router = useRouter();
 
-    const [messages, setMessages] = useState<ChatCompletionMessageParam[]>([]);
+    const [input, setInput] = useState("")
+    const [messages, setMessages] = useState<Message[]>([]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -41,18 +53,29 @@ const ConversationPage = () => {
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         try {
 
-            const ChatCompletionMessageParam = {
+            const userMessage:Message = {
                 role: "user",
                 content: values.prompt,
-            };
+            }
 
-            const newMessages = [...messages, ChatCompletionMessageParam];
+            const newMessages = [...messages,userMessage];
 
             const response = await axios.post("/api/code", {
-                messages: newMessages,
+                prompt: values.prompt,
             });
 
-            setMessages((current) => [...current, ChatCompletionMessageParam, response.data]);
+            console.log('api response :',response.data)
+
+            const botMessageContent = response.data.response.candidates[0]?.content?.parts[0]?.text;
+
+            const cleanBotMessageContent = botMessageContent.replace(/\*\*/g, "").trim();
+
+            const botMessage:Message = {
+                role:"bot",
+                content: cleanBotMessageContent|| "No response available",
+            }
+
+            setMessages([...newMessages,botMessage])
 
         } catch (error: any) {
             if (error?.response?.status === 403) {
@@ -64,6 +87,8 @@ const ConversationPage = () => {
             router.refresh();
         }
     }
+
+    console.log('message array :',messages);
 
     return (
         <div>
@@ -119,12 +144,12 @@ const ConversationPage = () => {
                         <Empty label="no conversation started" />
                     )}
                     <div className="flex flex-col-reverse gap-y-4">
-                        {messages.map((message) => (
-                            <div key={String(message.content)}
+                        {messages.map((message,index) => (
+                            <div key={index}
                                 className={cn("p-8 w-full flex items-start gap-x-8 rounded-lg", message.role === "user" ? "bg-white border border-black/10" : "bg-muted")}>
 
                                 {message.role === "user" ? <UserAvatar /> : <BotAvatar />}
-                                <p className="text-sm">{String(message.content)}</p>
+                                <ReactMarkdown className="text-sm">{message.content}</ReactMarkdown>
                             </div>
                         ))}
 
@@ -135,4 +160,4 @@ const ConversationPage = () => {
     );
 }
 
-export default ConversationPage;
+export default CodePage;

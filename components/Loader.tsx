@@ -5,9 +5,9 @@ const Loader = () => {
         <div className="h-4 flex flex-col gap-y-4 items-center justify-center">
             <div className="w-10 h-10 relative animate-spin">
                 <Image 
+                width={100}
+                height={100}
                 alt="loading"
-                width="300"
-                height="300"
                 src="/logo.png"
                 />
             </div>

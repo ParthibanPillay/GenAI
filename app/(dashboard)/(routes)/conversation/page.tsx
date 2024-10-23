@@ -3,7 +3,7 @@
 import axios from "axios";
 import * as z from "zod";
 import Heading from "@/components/heading";
-import { MessageSquareIcon } from "lucide-react";
+import { CodeIcon, MessageSquareIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { formSchema } from "./constants";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,8 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {ChatCompletionMessageParam} from "openai/resources/chat/completions";
-import OpenAI from "openai";
 import { Empty } from "@/components/Empty";
 import Loader from "@/components/Loader";
 import { cn } from "@/lib/utils";
@@ -21,13 +19,27 @@ import { UserAvatar } from "@/components/user-avatar";
 import { BotAvatar } from "@/components/bot-avatar";
 import { useProModal } from "@/hooks/use-pro-modal";
 import toast from "react-hot-toast";
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { connect } from "http2";
+import ReactMarkdown from 'react-markdown';
+
+const genAI = new GoogleGenerativeAI(process.env.API_KEY||"");
+const model = genAI.getGenerativeModel({
+  model: 'gemini-1.5-pro',
+});
+
+interface Message {
+    role: "user" | "bot";  // Specify the roles
+    content: string; //content of the message
+}
 
 const ConversationPage = () => {
 
     const proModal = useProModal();
     const router = useRouter();
 
-    const [messages,setMessages] = useState<ChatCompletionMessageParam[]>([]);
+    const [input, setInput] = useState("")
+    const [messages, setMessages] = useState<Message[]>([]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -39,39 +51,53 @@ const ConversationPage = () => {
     const isLoading = form.formState.isSubmitting;
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
-        try{
-            const ChatCompletionMessageParam = {
-                role : "user",
-                content : values.prompt,
-            };
+        try {
 
-            const newMessages = [...messages,ChatCompletionMessageParam];
+            const userMessage:Message = {
+                role: "user",
+                content: values.prompt,
+            }
 
-            const response = await axios.post("/api/conversation",{
-                messages : newMessages,
+            const newMessages = [...messages,userMessage];
+
+            const response = await axios.post("/api/code", {
+                prompt: values.prompt,
             });
 
-            setMessages((current) => [...current,ChatCompletionMessageParam,response.data]);
+            console.log('api response :',response.data)
 
-        } catch(error:any){
-        if(error?.response?.status === 403){
-            proModal.onOpen();
-        } else {
-            toast.error("something went wrong")
-        }
-        } finally{
+            const botMessageContent = response.data.response.candidates[0]?.content?.parts[0]?.text;
+
+            const cleanBotMessageContent = botMessageContent.replace(/\*\*/g, "").trim();
+
+            const botMessage:Message = {
+                role:"bot",
+                content: cleanBotMessageContent|| "No response available",
+            }
+
+            setMessages([...newMessages,botMessage])
+
+        } catch (error: any) {
+            if (error?.response?.status === 403) {
+                proModal.onOpen();
+            } else {
+                toast.error("something went wrong");
+            }
+        } finally {
             router.refresh();
         }
     }
 
+    console.log('message array :',messages);
+
     return (
         <div>
             <Heading
-                title="conversation"
-                description="chat with AI conversation"
+                title="conversation Page"
+                description="chat with latest Conversation Model."
                 icon={MessageSquareIcon}
-                iconColor="text-violet-500"
-                bgColor="bg-violet-500/10"
+                iconColor="text-purple-500"
+                bgColor="bg-purple-500/10"
             />
 
             <div className="px-4 lg:px-8">
@@ -95,14 +121,14 @@ const ConversationPage = () => {
                                         <FormControl className="m-0 p-0">
                                             <Input className="border-0 outline-none focus-visible:ring-0 focus-visible:ring-transparent"
                                                 disabled={isLoading}
-                                                placeholder="Message Conversation AI" 
-                                                {...field}/>
+                                                placeholder="e.x. what is your purpose ?"
+                                                {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )} />
-                                <Button className="col-span-12 lg:col-span-2 w-full" disabled={isLoading}>
-                                    Generate 
-                                </Button>
+                            <Button className="col-span-12 lg:col-span-2 w-full" disabled={isLoading}>
+                                Generate
+                            </Button>
                         </form>
                     </Form>
                 </div>
@@ -110,20 +136,20 @@ const ConversationPage = () => {
                 <div className="space-y-4 mt-4">
                     {isLoading && (
                         <div className="p-8 rounded-lg w-full flex items-center justify-center bg-muted">
-                            <Loader/>
+                            <Loader />
                         </div>
                     )}
 
                     {messages.length === 0 && !isLoading && (
-                        <Empty label="no conversation started"/>
+                        <Empty label="no conversation started" />
                     )}
                     <div className="flex flex-col-reverse gap-y-4">
-                        {messages.map((message) => (
-                            <div key={String(message.content)}
-                            className={cn("p-8 w-full flex items-start gap-x-8 rounded-lg",message.role === "user"?"bg-white border border-black/10" : "bg-muted")}>
+                        {messages.map((message,index) => (
+                            <div key={index}
+                                className={cn("p-8 w-full flex items-start gap-x-8 rounded-lg", message.role === "user" ? "bg-white border border-black/10" : "bg-muted")}>
 
-                                {message.role === "user"?<UserAvatar />:<BotAvatar/>}
-                                <p className="text-sm">{String(message.content)}</p>
+                                {message.role === "user" ? <UserAvatar /> : <BotAvatar />}
+                                <ReactMarkdown className="text-sm">{message.content}</ReactMarkdown>
                             </div>
                         ))}
 

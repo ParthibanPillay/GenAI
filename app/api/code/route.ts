@@ -1,20 +1,24 @@
 import { auth } from '@clerk/nextjs/server';
 import { stat } from 'fs';
 import { NextResponse } from 'next/server';
-import { OpenAI } from 'openai';
-import Replicate from 'replicate';
-import Anthropic from "@anthropic-ai/sdk";
+import {
+  GoogleGenerativeAI,HarmCategory,HarmBlockThreshold,
+} from "@google/generative-ai";
 import { increaseApiLimit, checkApiLimit } from '@/lib/api-limit';
 import { checkSubscription } from '@/lib/subscription';
 
+const apiKey = "AIzaSyCStG12XPvsvDCCquk6C6040d8UBvDJMVY";
+const genAI = new GoogleGenerativeAI(apiKey);
 
-const anthropic = new Anthropic();
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-pro",
+});
 
 export async function POST(req:Request){
     try{
         const {userId} = auth();
         const body = await req.json();
-        const {prompt} = body;
+        const { prompt } = body;
 
         if (!userId) {
             return new NextResponse("unauthorized",{status:401});
@@ -30,38 +34,19 @@ export async function POST(req:Request){
         if(!freeTrial && !isPro){
             return new NextResponse("free trial has expired.", {status:403})
         }
-
-        const input = {
-            prompt
-        };
-        
-        const msg = await anthropic.messages.create({
-            model: "claude-3-5-sonnet-20240620",
-            max_tokens: 1000,
-            temperature: 0,
-            system: "You are an code pilot. You will answer to only programming related questions.",
-            messages: [
-                {
-                "role": "user",
-                "content": [
-                    {
-                    "type": "text",
-                    "text": prompt
-                    }
-                ]
-                }
-            ]
-            });
+      
+        const result = await model.generateContent(prompt);
+        console.log(prompt);
+        console.log(result.response.text());
 
             if(!isPro) {
                 await increaseApiLimit();
             }
 
-        return NextResponse.json(msg);
+        return NextResponse.json(result,{status:200});
 
     } catch(error){
-        console.log("[CONVERSATION_ERROR]",error);
+        console.log("[CODE_ERROR]",error);
         return new NextResponse("Internal Error",{status:500});
     }
 }
-

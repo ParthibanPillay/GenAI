@@ -5,8 +5,13 @@ import Replicate from 'replicate';
 import { scheduler } from 'timers/promises';
 import { increaseApiLimit, checkApiLimit } from '@/lib/api-limit';
 import { checkSubscription } from '@/lib/subscription';
+import { amountOptions, resolutionOptions } from '@/app/(dashboard)/(routes)/image/constants';
 
 const replicate = new Replicate();
+
+type ReplicateResponse = {
+    output:string[]
+}
 
 export async function POST(req:Request){
     try{
@@ -40,15 +45,23 @@ export async function POST(req:Request){
 
         const response = await replicate.run("stability-ai/stable-diffusion:ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4", { 
             input : {
-                prompt
+                prompt,
+                num_outputs: Number(amount),
             }
          });
+         
+        const prediction = response as unknown as string[];
+
+        const imageurl = prediction[0];
+
+         console.log(response);
+
 
          if(!isPro) {
             await increaseApiLimit();
         }
 
-        return NextResponse.json(response);
+        return NextResponse.json({ imageUrl : prediction});
 
     } catch(error){
         console.log("[IMAGE_ERROR]",error);
